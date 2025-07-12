@@ -33,3 +33,9 @@ model Setting {
   key   String @id
   value String
 }
+
+model ApiKey {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  createdAt DateTime @default(now())
+}

@@ -162,8 +162,28 @@ import { prisma } from "./prisma";
 let keyManagerInstance: KeyManager | null = null;
 
 async function createKeyManager(): Promise<KeyManager> {
-  const apiKeys = getKeysFromEnv();
+  // 1. Sync keys from environment to database
+  const keysFromEnv = getKeysFromEnv();
+  const keysInDb = await prisma.apiKey.findMany();
+  const keysToCreate = keysFromEnv.filter(
+    (envKey) => !keysInDb.some((dbKey) => dbKey.key === envKey)
+  );
 
+  if (keysToCreate.length > 0) {
+    await prisma.apiKey.createMany({
+      data: keysToCreate.map((key) => ({ key })),
+      skipDuplicates: true,
+    });
+    console.log(
+      `Synced ${keysToCreate.length} new keys from environment to database.`
+    );
+  }
+
+  // 2. Load all keys from the database to be used at runtime
+  const allDbKeys = await prisma.apiKey.findMany();
+  const apiKeys = allDbKeys.map((k) => k.key);
+
+  // 3. Load settings from the database
   let maxFailures = 3; // Default value
   const maxFailuresSetting = await prisma.setting.findUnique({
     where: { key: "MAX_FAILURES" },

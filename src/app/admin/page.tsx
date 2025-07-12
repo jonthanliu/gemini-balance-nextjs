@@ -1,6 +1,8 @@
-import { getKeyManager, KeyManager } from "@/lib/key-manager";
+import { getKeyManager } from "@/lib/key-manager";
 import { prisma } from "@/lib/prisma";
+import { AddKeyForm } from "./AddKeyForm";
 import { ConfigCard } from "./ConfigCard";
+import { KeyList } from "./KeyList";
 
 export const revalidate = 0; // Disable caching
 
@@ -68,32 +70,18 @@ export default async function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Config Section */}
-          <div className="xl:col-span-1">
+          {/* Left Column: Config and Key Management */}
+          <div className="xl:col-span-1 space-y-8">
             <ConfigCard currentMaxFailures={stats.maxFailures} />
-          </div>
-          {/* Keys Section */}
-          <div className="xl:col-span-2">
-            <KeyList title="Valid Keys" keys={stats.validKeys} />
-            <div className="mt-8">
-              <KeyList
-                title="Invalid Keys"
-                keys={stats.invalidKeys}
-                isInvalid
-              />
-            </div>
+            <AddKeyForm />
+            <LogList title="Recent Request Logs" logs={stats.requestLogs} />
+            <LogList title="Recent Error Logs" logs={stats.errorLogs} isError />
           </div>
 
-          {/* Logs Section */}
-          <div>
-            <LogList title="Recent Request Logs" logs={stats.requestLogs} />
-            <div className="mt-8">
-              <LogList
-                title="Recent Error Logs"
-                logs={stats.errorLogs}
-                isError
-              />
-            </div>
+          {/* Right Column: Keys */}
+          <div className="xl:col-span-2 space-y-8">
+            <KeyList title="Valid Keys" keys={stats.validKeys} />
+            <KeyList title="Invalid Keys" keys={stats.invalidKeys} isInvalid />
           </div>
         </div>
       </div>
@@ -111,49 +99,6 @@ const StatCard = ({
   <div className="bg-white p-6 rounded-lg shadow">
     <h3 className="text-sm font-medium text-gray-500">{title}</h3>
     <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
-  </div>
-);
-
-const KeyList = ({
-  title,
-  keys,
-  isInvalid,
-}: {
-  title: string;
-  keys: ReturnType<KeyManager["getAllKeys"]>;
-  isInvalid?: boolean;
-}) => (
-  <div className="bg-white p-6 rounded-lg shadow">
-    <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
-    <ul className="space-y-3">
-      {keys.map((key) => (
-        <li
-          key={key.key}
-          className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-        >
-          <span className="font-mono text-sm text-gray-700">
-            ...{key.key.slice(-4)}
-          </span>
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">
-              Fails: {key.failCount}
-            </span>
-            <span
-              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                isInvalid
-                  ? "bg-red-100 text-red-800"
-                  : "bg-green-100 text-green-800"
-              }`}
-            >
-              {isInvalid ? "Invalid" : "Valid"}
-            </span>
-          </div>
-        </li>
-      ))}
-      {keys.length === 0 && (
-        <p className="text-sm text-gray-500">No keys in this category.</p>
-      )}
-    </ul>
   </div>
 );
 
