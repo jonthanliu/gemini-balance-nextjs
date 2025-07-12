@@ -157,7 +157,7 @@ const getMaxFailuresFromEnv = (): number => {
   return 3; // Default value
 };
 
-import { prisma } from "./prisma";
+import { prisma } from "./db";
 
 let keyManagerInstance: KeyManager | null = null;
 
@@ -172,7 +172,6 @@ async function createKeyManager(): Promise<KeyManager> {
   if (keysToCreate.length > 0) {
     await prisma.apiKey.createMany({
       data: keysToCreate.map((key) => ({ key })),
-      skipDuplicates: true,
     });
     console.log(
       `Synced ${keysToCreate.length} new keys from environment to database.`

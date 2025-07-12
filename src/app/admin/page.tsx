@@ -1,5 +1,5 @@
+import { prisma } from "@/lib/db";
 import { getKeyManager } from "@/lib/key-manager";
-import { prisma } from "@/lib/prisma";
 import { AddKeyForm } from "./AddKeyForm";
 import { ConfigCard } from "./ConfigCard";
 import { KeyList } from "./KeyList";
