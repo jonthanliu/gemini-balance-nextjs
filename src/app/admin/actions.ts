@@ -41,7 +41,6 @@ export async function addApiKeys(keysString: string) {
 
     await prisma.apiKey.createMany({
       data: newKeys.map((key) => ({ key })),
-      skipDuplicates: true,
     });
 
     resetKeyManager(); // Reset the singleton instance
