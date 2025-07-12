@@ -8,13 +8,13 @@
 
 **目标：补齐最核心的安全认证和后台管理功能，确保项目可被安全地部署和管理。**
 
-### 任务 1.1: 实现统一的配置管理与 API 访问控制
+### 任务 1.1: 实现统一的配置管理与 API 访问控制 [已完成]
 
 **描述**: 建立一套健壮的配置管理机制，确保环境变量（`.env`）和数据库（`Prisma`）中的配置能够协同工作。在此基础上，为核心 API 路由启用 `Bearer Token` 认证。
 
 **具体步骤**:
 
-1.  **创建统一的配置加载服务**:
+1.  **[x] 创建统一的配置加载服务**:
 
     - **文件**: `src/lib/settings.ts` (新建)
     - **任务**:
@@ -28,7 +28,7 @@
         - 将所有配置项缓存到内存中（例如一个 `Map` 或简单的对象），避免后续重复查询数据库。
       - 提供一个 `resetSettings()` 函数，用于在配置更新后清空内存缓存，强制下次调用时重新从数据库加载。
 
-2.  **实现 API 访问控制 (`ALLOWED_TOKENS`)**:
+2.  **[x] 实现 API 访问控制 (`ALLOWED_TOKENS`)**:
 
     - **文件**: `src/middleware.ts`
     - **任务**:
@@ -38,7 +38,7 @@
       - 验证 `token` 是否在 `ALLOWED_TOKENS` 列表中。
       - 如果验证失败，返回 `401 Unauthorized` 响应。
 
-3.  **实现 `ALLOWED_TOKENS` 的后台管理**:
+3.  **[x] 实现 `ALLOWED_TOKENS` 的后台管理**:
     - **文件**: `src/app/admin/actions.ts`
     - **任务**:
       - 创建一个 Server Action `updateSetting(key: string, value: string)`。

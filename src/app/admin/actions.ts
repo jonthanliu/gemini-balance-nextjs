@@ -1,7 +1,10 @@
 "use server";
 
+"use server";
+
 import { prisma } from "@/lib/db";
 import { getKeyManager, resetKeyManager } from "@/lib/key-manager";
+import { resetSettings } from "@/lib/settings";
 import { revalidatePath } from "next/cache";
 
 export async function addApiKey(apiKey: string) {
@@ -72,23 +75,20 @@ export async function getKeyUsageDetails(apiKey: string) {
   }
 }
 
-export async function updateMaxFailures(newMaxFailures: number) {
-  if (typeof newMaxFailures !== "number" || newMaxFailures < 0) {
-    return { error: "Invalid value for MAX_FAILURES" };
-  }
-
+export async function updateSetting(key: string, value: string) {
   try {
-    await prisma.setting.update({
-      where: { key: "MAX_FAILURES" },
-      data: { value: String(newMaxFailures) },
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
     });
 
-    // Revalidate the admin page to show the new value
-    revalidatePath("/admin");
+    resetSettings(); // 清空配置缓存
+    revalidatePath("/admin"); // 重新验证管理页面
 
     return { success: "Configuration updated successfully!" };
   } catch (error) {
-    console.error("Failed to update MAX_FAILURES:", error);
+    console.error(`Failed to update setting ${key}:`, error);
     return { error: "Failed to update configuration." };
   }
 }

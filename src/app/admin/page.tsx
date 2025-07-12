@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getKeyManager } from "@/lib/key-manager";
+import { getSettings } from "@/lib/settings";
 import { AddKeyForm } from "./AddKeyForm";
 import { ConfigCard } from "./ConfigCard";
 import { KeyList } from "./KeyList";
@@ -27,14 +28,10 @@ async function getStats() {
     where: { isSuccess: true },
   });
 
-  const maxFailuresSetting = await prisma.setting.findUnique({
-    where: { key: "MAX_FAILURES" },
-  });
+  const settings = await getSettings();
 
   return {
-    maxFailures: maxFailuresSetting
-      ? parseInt(maxFailuresSetting.value, 10)
-      : 3,
+    settings,
     totalKeys: keys.length,
     validKeyCount: validKeys.length,
     invalidKeyCount: invalidKeys.length,
@@ -72,7 +69,7 @@ export default async function AdminPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Left Column: Config and Key Management */}
           <div className="xl:col-span-1 space-y-8">
-            <ConfigCard currentMaxFailures={stats.maxFailures} />
+            <ConfigCard settings={stats.settings} />
             <AddKeyForm />
             <LogList title="Recent Request Logs" logs={stats.requestLogs} />
             <LogList title="Recent Error Logs" logs={stats.errorLogs} isError />
