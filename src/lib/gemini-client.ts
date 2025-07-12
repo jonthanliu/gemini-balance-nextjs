@@ -1,103 +1,108 @@
 import { prisma } from "@/lib/db";
 import { getKeyManager } from "@/lib/key-manager";
+import {
+  EnhancedGenerateContentResponse,
+  GenerateContentRequest,
+  GoogleGenerativeAI,
+} from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 const MAX_RETRIES = 3;
-const GOOGLE_API_HOST =
-  process.env.GOOGLE_API_HOST || "https://generativelanguage.googleapis.com";
 
-interface GeminiRequestParams {
+export interface GeminiClientRequest {
   model: string;
-  body: Record<string, any>;
+  request: GenerateContentRequest;
 }
 
 /**
- * Calls the Gemini API with built-in retry logic, key management, and logging.
+ * Transforms a stream from the @google/generative-ai SDK into a web-standard ReadableStream.
+ */
+function sdkStreamToReadableStream(
+  sdkStream: AsyncGenerator<EnhancedGenerateContentResponse>
+): ReadableStream {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    async start(controller) {
+      for await (const chunk of sdkStream) {
+        // The SDK provides response chunks directly. We adapt them to SSE format.
+        const jsonChunk = JSON.stringify(chunk);
+        controller.enqueue(encoder.encode(`data: ${jsonChunk}\n\n`));
+      }
+      controller.close();
+    },
+  });
+}
+
+/**
+ * Checks if the given error is an object with an httpStatus property.
+ */
+function isApiError(error: unknown): error is { httpStatus?: number } {
+  return typeof error === "object" && error !== null && "httpStatus" in error;
+}
+
+/**
+ * Calls the Gemini API using the official SDK with built-in retry logic,
+ * key management, and logging.
  *
- * @param model The model name to use (e.g., "gemini-pro").
- * @param body The request body to send to the Gemini API.
- * @returns A NextResponse object with the Gemini API's response.
- * @throws An error if all API key retries fail.
+ * @returns A Response object with the Gemini API's stream or an error.
  */
 export async function callGeminiApi({
   model,
-  body,
-}: GeminiRequestParams): Promise<NextResponse> {
+  request,
+}: GeminiClientRequest): Promise<Response> {
   const keyManager = await getKeyManager();
-  let lastError: any = null;
+  let lastError: unknown = null;
 
   for (let i = 0; i < MAX_RETRIES; i++) {
     const apiKey = keyManager.getNextWorkingKey();
     const startTime = Date.now();
 
     try {
-      const geminiResponse = await fetch(
-        `${GOOGLE_API_HOST}/v1beta/models/${model}:streamGenerateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      );
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const generativeModel = genAI.getGenerativeModel({ model });
+
+      const result = await generativeModel.generateContentStream(request);
+      const stream = sdkStreamToReadableStream(result.stream);
 
       const latency = Date.now() - startTime;
-
-      // Handle successful responses
-      if (geminiResponse.ok) {
-        await prisma.requestLog.create({
-          data: {
-            apiKey: apiKey.slice(-4),
-            model,
-            statusCode: geminiResponse.status,
-            isSuccess: true,
-            latency,
-          },
-        });
-        keyManager.resetKeyFailureCount(apiKey);
-        return new NextResponse(geminiResponse.body, {
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-          },
-          status: geminiResponse.status,
-        });
-      }
-
-      // Handle API errors
-      lastError = await geminiResponse.json();
       await prisma.requestLog.create({
         data: {
           apiKey: apiKey.slice(-4),
           model,
-          statusCode: geminiResponse.status,
-          isSuccess: false,
+          statusCode: 200, // Success
+          isSuccess: true,
           latency,
         },
       });
-      await prisma.errorLog.create({
-        data: {
-          apiKey: apiKey.slice(-4),
-          errorType: `API Error (Attempt ${i + 1})`,
-          errorMessage: lastError?.error?.message || "Unknown API error",
-          errorDetails: JSON.stringify(lastError),
+      keyManager.resetKeyFailureCount(apiKey);
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
         },
       });
-
-      if (geminiResponse.status >= 400 && geminiResponse.status < 500) {
-        keyManager.handleApiFailure(apiKey);
-      }
-      continue; // Retry with the next key
     } catch (error) {
-      // Handle fetch/network errors
       lastError = error;
       const latency = Date.now() - startTime;
+      let statusCode = 500;
+      let errorMessage = "An unknown error occurred";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      // Check for Google API specific error properties
+      if (isApiError(error) && error.httpStatus) {
+        statusCode = error.httpStatus;
+      }
 
       await prisma.requestLog.create({
         data: {
           apiKey: apiKey.slice(-4),
           model,
-          statusCode: 500, // Generic server error
+          statusCode,
           isSuccess: false,
           latency,
         },
@@ -105,17 +110,18 @@ export async function callGeminiApi({
       await prisma.errorLog.create({
         data: {
           apiKey: apiKey.slice(-4),
-          errorType: `Fetch Error (Attempt ${i + 1})`,
-          errorMessage: (error as Error).message,
+          errorType: `SDK Error (Attempt ${i + 1})`,
+          errorMessage,
           errorDetails: JSON.stringify(error),
         },
       });
 
-      keyManager.handleApiFailure(apiKey);
+      if (statusCode >= 400 && statusCode < 500) {
+        keyManager.handleApiFailure(apiKey);
+      }
     }
   }
 
-  // If all retries fail, throw a final error
   await prisma.errorLog.create({
     data: {
       errorType: "General Error",

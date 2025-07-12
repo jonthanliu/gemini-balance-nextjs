@@ -15,7 +15,7 @@
 
 这些任务旨在优化项目核心结构，消除冗余，提高模块化和可维护性。
 
-- [ ] **[高] [可维护性] 重构：抽象并复用 Gemini API 请求逻辑**
+- [x] **[高] [可维护性] 重构：抽象并复用 Gemini API 请求逻辑**
 
   - **文件路径**: `src/app/openai/v1/chat/completions/route.ts`, `src/lib/gemini-proxy.ts`
   - **问题描述**: `gemini-proxy.ts` 和 `chat/completions/route.ts` 中存在重复的 `fetch` 代理逻辑，并且 `completions/route.ts` 的 `POST` 函数逻辑过于复杂，违反了单一职责原则。
@@ -25,7 +25,7 @@
     3. 重构 `completions/route.ts`，使其 `POST` 函数的主体仅负责解析请求、调用 `callGeminiApi` 并返回响应。
     4. 重构 `gemini-proxy.ts`，使其也调用 `callGeminiApi`，从而消除代码重复。
 
-- [ ] **[高] [健壮性] 重构：使用 @google/generative-ai SDK 处理流数据**
+- [x] **[高] [健壮性] 重构：使用 @google/generative-ai SDK 处理流数据**
 
   - **文件路径**: `src/lib/gemini-client.ts`, `src/app/openai/v1/chat/completions/route.ts`
   - **问题描述**: 项目当前手动解析 Gemini API 的流式响应，这种方法复杂、脆弱且难以维护。一旦上游 API 格式变更，代码就会失效。
