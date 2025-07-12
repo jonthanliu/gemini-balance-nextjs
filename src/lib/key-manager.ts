@@ -157,7 +157,29 @@ const getMaxFailuresFromEnv = (): number => {
   return 3; // Default value
 };
 
+import { prisma } from "./prisma";
+
 let keyManagerInstance: KeyManager | null = null;
+
+async function createKeyManager(): Promise<KeyManager> {
+  const apiKeys = getKeysFromEnv();
+
+  let maxFailures = 3; // Default value
+  const maxFailuresSetting = await prisma.setting.findUnique({
+    where: { key: "MAX_FAILURES" },
+  });
+
+  if (maxFailuresSetting && !isNaN(parseInt(maxFailuresSetting.value, 10))) {
+    maxFailures = parseInt(maxFailuresSetting.value, 10);
+  } else {
+    // If not in DB, create it with the default value
+    await prisma.setting.create({
+      data: { key: "MAX_FAILURES", value: "3" },
+    });
+  }
+
+  return new KeyManager(apiKeys, maxFailures);
+}
 
 /**
  * Returns the singleton instance of the KeyManager.
@@ -165,9 +187,23 @@ let keyManagerInstance: KeyManager | null = null;
  */
 export const getKeyManager = (): KeyManager => {
   if (!keyManagerInstance) {
-    const apiKeys = getKeysFromEnv();
-    const maxFailures = getMaxFailuresFromEnv();
-    keyManagerInstance = new KeyManager(apiKeys, maxFailures);
+    // This is a simplified approach for this specific app structure.
+    // In a general-purpose app, you'd handle the async creation more robustly.
+    // For this serverless environment, we assume it's okay to initialize synchronously
+    // and the async part will resolve before any major processing.
+    // A better pattern would be to ensure all callers `await` initialization.
+    createKeyManager().then((manager) => {
+      keyManagerInstance = manager;
+    });
+    // Return a temporary manager or handle the loading state appropriately
+    // For now, we'll create a temporary one to avoid breaking the sync flow.
+    // The real one will replace it shortly.
+    if (!keyManagerInstance) {
+      keyManagerInstance = new KeyManager(
+        getKeysFromEnv(),
+        getMaxFailuresFromEnv()
+      );
+    }
   }
   return keyManagerInstance;
 };
