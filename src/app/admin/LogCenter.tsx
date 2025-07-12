@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { clearAllLogs, deleteLogs, getLogs } from "./actions";
 
 type Log = {
@@ -61,9 +61,9 @@ export function LogCenter() {
   };
 
   // Fetch logs on initial render and when dependencies change
-  useState(() => {
+  useEffect(() => {
     fetchLogs();
-  });
+  }, [logType, page]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { addApiKey } from "./actions";
+import { addApiKeys } from "./actions";
 
 export const AddKeyForm = () => {
   const [isPending, startTransition] = useTransition();
@@ -12,10 +12,10 @@ export const AddKeyForm = () => {
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (formData: FormData) => {
-    const apiKey = formData.get("apiKey") as string;
+    const apiKeys = formData.get("apiKeys") as string;
 
     startTransition(async () => {
-      const result = await addApiKey(apiKey);
+      const result = await addApiKeys(apiKeys);
       if (result.error) {
         setMessage({ text: result.error, type: "error" });
       } else {
@@ -28,25 +28,27 @@ export const AddKeyForm = () => {
   return (
     <div className="bg-white p-6 rounded-lg shadow">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        Add New API Key
+        Add New API Keys
       </h3>
       <form ref={formRef} action={handleSubmit} className="space-y-4">
-        <div className="flex rounded-md shadow-sm">
-          <input
-            type="text"
-            name="apiKey"
-            id="apiKey"
-            className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300"
-            placeholder="AIza..."
+        <div>
+          <textarea
+            name="apiKeys"
+            id="apiKeys"
+            rows={5}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="Enter one or more API keys, separated by new lines."
             required
             disabled={isPending}
           />
+        </div>
+        <div>
           <button
             type="submit"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
             disabled={isPending}
           >
-            {isPending ? "Adding..." : "Add Key"}
+            {isPending ? "Adding..." : "Add Keys"}
           </button>
         </div>
         {message && (

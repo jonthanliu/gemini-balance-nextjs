@@ -43,7 +43,17 @@ export const KeyList = ({
               Reset
             </button>
             <button
-              onClick={() => deleteApiKeys([key.key])}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Are you sure you want to delete the key ending in ...${key.key.slice(
+                      -4
+                    )}?`
+                  )
+                ) {
+                  deleteApiKeys([key.key]);
+                }
+              }}
               className="text-xs text-red-600 hover:underline"
             >
               Delete

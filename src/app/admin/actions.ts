@@ -7,17 +7,51 @@ import { getKeyManager, resetKeyManager } from "@/lib/key-manager";
 import { resetSettings } from "@/lib/settings";
 import { revalidatePath } from "next/cache";
 
-export async function addApiKey(apiKey: string) {
-  if (!apiKey || !apiKey.startsWith("AIza")) {
-    return { error: "Invalid API key format." };
+export async function addApiKeys(keysString: string) {
+  if (!keysString) {
+    return { error: "No API keys provided." };
   }
+
+  const keys = keysString
+    .split(/[\n,]+/) // Split by newlines or commas
+    .map((key) => key.trim())
+    .filter((key) => key && key.startsWith("AIza"));
+
+  if (keys.length === 0) {
+    return { error: "No valid API keys found in the input." };
+  }
+
+  const uniqueKeys = [...new Set(keys)];
+
   try {
-    await prisma.apiKey.create({ data: { key: apiKey } });
+    const existingKeys = await prisma.apiKey.findMany({
+      where: {
+        key: { in: uniqueKeys },
+      },
+    });
+    const existingKeySet = new Set(existingKeys.map((k) => k.key));
+
+    const newKeys = uniqueKeys.filter((key) => !existingKeySet.has(key));
+
+    if (newKeys.length === 0) {
+      return {
+        error: "All provided keys already exist or were duplicates.",
+      };
+    }
+
+    await prisma.apiKey.createMany({
+      data: newKeys.map((key) => ({ key })),
+      skipDuplicates: true,
+    });
+
     resetKeyManager(); // Reset the singleton instance
     revalidatePath("/admin");
-    return { success: "API key added successfully." };
+    return {
+      success: `${newKeys.length} new API key(s) added successfully.`,
+    };
   } catch (error) {
-    return { error: "Failed to add API key (it might already exist)." };
+    console.error("Failed to add API keys:", error);
+    return { error: "Failed to add API keys to the database." };
   }
 }
 
