@@ -1,0 +1,30 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model RequestLog {
+  id          Int      @id @default(autoincrement())
+  apiKey      String
+  model       String
+  statusCode  Int
+  isSuccess   Boolean
+  latency     Float // Latency in milliseconds
+  createdAt   DateTime @default(now())
+}
+
+model ErrorLog {
+  id           Int      @id @default(autoincrement())
+  apiKey       String?
+  errorType    String
+  errorMessage String
+  errorDetails String?
+  createdAt    DateTime @default(now())
+}
