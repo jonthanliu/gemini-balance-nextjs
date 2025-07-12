@@ -1,5 +1,6 @@
 import { cycle } from "itertools";
 import { prisma } from "./db";
+import { getSettings } from "./settings";
 
 /**
  * Manages a pool of API keys, providing round-robin selection,
@@ -123,21 +124,9 @@ async function createKeyManager(): Promise<KeyManager> {
   const allDbKeys = await prisma.apiKey.findMany();
   const apiKeys = allDbKeys.map((k) => k.key);
 
-  // 3. Load settings from the database
-  let maxFailures = 3;
-  const maxFailuresSetting = await prisma.setting.findUnique({
-    where: { key: "MAX_FAILURES" },
-  });
-
-  if (maxFailuresSetting && !isNaN(parseInt(maxFailuresSetting.value, 10))) {
-    maxFailures = parseInt(maxFailuresSetting.value, 10);
-  } else {
-    await prisma.setting.upsert({
-      where: { key: "MAX_FAILURES" },
-      update: {},
-      create: { key: "MAX_FAILURES", value: "3" },
-    });
-  }
+  // 3. Load settings using the settings service
+  const settings = await getSettings();
+  const maxFailures = parseInt(settings.MAX_FAILURES, 10);
 
   return new KeyManager(apiKeys, maxFailures);
 }
