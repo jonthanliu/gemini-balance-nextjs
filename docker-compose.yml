@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - GEMINI_API_KEYS=${GEMINI_API_KEYS}
+      - MAX_FAILURES=${MAX_FAILURES}
+      - DATABASE_URL=file:/app/prisma/dev.db
+    volumes:
+      # Mount the prisma folder to persist the database file
+      - ./prisma:/app/prisma
