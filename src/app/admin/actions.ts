@@ -92,3 +92,71 @@ export async function updateSetting(key: string, value: string) {
     return { error: "Failed to update configuration." };
   }
 }
+
+// Log Management Actions
+
+type LogType = "request" | "error";
+
+interface LogFilters {
+  logType: LogType;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function getLogs(filters: LogFilters) {
+  const { logType, search, page = 1, limit = 10 } = filters;
+  const where: any = {};
+
+  if (search) {
+    if (logType === "request") {
+      where.apiKey = { contains: search };
+    } else {
+      where.OR = [
+        { errorType: { contains: search } },
+        { errorMessage: { contains: search } },
+      ];
+    }
+  }
+
+  try {
+    const model = logType === "request" ? prisma.requestLog : prisma.errorLog;
+    const total = await (model as any).count({ where });
+    const logs = await (model as any).findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { logs, total };
+  } catch (error) {
+    console.error(`Failed to fetch ${logType} logs:`, error);
+    return { error: `Failed to fetch ${logType} logs.` };
+  }
+}
+
+export async function deleteLogs(logIds: number[], logType: LogType) {
+  try {
+    const model = logType === "request" ? prisma.requestLog : prisma.errorLog;
+    const response = await (model as any).deleteMany({
+      where: { id: { in: logIds } },
+    });
+    revalidatePath("/admin");
+    return { success: `${response.count} log(s) deleted.` };
+  } catch (error) {
+    console.error(`Failed to delete ${logType} logs:`, error);
+    return { error: `Failed to delete ${logType} logs.` };
+  }
+}
+
+export async function clearAllLogs(logType: LogType) {
+  try {
+    const model = logType === "request" ? prisma.requestLog : prisma.errorLog;
+    await (model as any).deleteMany({});
+    revalidatePath("/admin");
+    return { success: `All ${logType} logs cleared.` };
+  } catch (error) {
+    console.error(`Failed to clear ${logType} logs:`, error);
+    return { error: `Failed to clear ${logType} logs.` };
+  }
+}

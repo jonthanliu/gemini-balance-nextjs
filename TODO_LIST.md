@@ -47,13 +47,13 @@
     - **文件**: `src/app/admin/ConfigCard.tsx` (或创建一个新组件)
     - **任务**: 在“系统配置”页面中，添加一个文本区域（Textarea）用于编辑 `ALLOWED_TOKENS`，其“保存”按钮调用 `updateSetting` Server Action。
 
-### 任务 1.2: 完善后台日志管理功能
+### 任务 1.2: 完善后台日志管理功能 [已完成]
 
 **描述**: 在“日志中心”标签页中，实现对错误日志和请求日志的完整 CRUD 操作。
 
 **具体步骤**:
 
-1.  **创建 Server Actions**:
+1.  **[x] 创建 Server Actions**:
 
     - **文件**: `src/app/admin/actions.ts`
     - **任务**:
@@ -61,7 +61,7 @@
       - 创建 `deleteLogs(logIds: number[], logType: 'error' | 'request')`: 根据 ID 列表和类型删除日志。
       - 创建 `clearAllLogs(logType: 'error' | 'request')`: 清空特定类型的所有日志。
 
-2.  **构建 UI 界面**:
+2.  **[x] 构建 UI 界面**:
     - **文件**: 在 `/src/app/admin/` 下创建一个新的组件，例如 `LogCenter.tsx`。
     - **任务**:
       - 构建一个包含筛选控件（搜索框、日期选择器等）的表单。
