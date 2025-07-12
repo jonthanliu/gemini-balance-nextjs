@@ -5,7 +5,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { model: string[] } }
 ) {
-  const keyManager = getKeyManager();
+  const keyManager = await getKeyManager();
   const apiKey = keyManager.getNextWorkingKey();
 
   // Reconstruct the original Gemini API URL

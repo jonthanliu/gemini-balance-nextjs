@@ -7,7 +7,7 @@ import { KeyList } from "./KeyList";
 export const revalidate = 0; // Disable caching
 
 async function getStats() {
-  const keyManager = getKeyManager();
+  const keyManager = await getKeyManager();
   const keys = keyManager.getAllKeys();
   const validKeys = keys.filter((k) => k.isWorking);
   const invalidKeys = keys.filter((k) => !k.isWorking);

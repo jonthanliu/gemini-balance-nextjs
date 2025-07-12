@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { getKeyManager } from "@/lib/key-manager";
+import { getKeyManager, resetKeyManager } from "@/lib/key-manager";
 import { revalidatePath } from "next/cache";
 
 export async function addApiKey(apiKey: string) {
@@ -10,6 +10,7 @@ export async function addApiKey(apiKey: string) {
   }
   try {
     await prisma.apiKey.create({ data: { key: apiKey } });
+    resetKeyManager(); // Reset the singleton instance
     revalidatePath("/admin");
     return { success: "API key added successfully." };
   } catch (error) {
@@ -25,6 +26,7 @@ export async function deleteApiKeys(keys: string[]) {
     const deleteResponse = await prisma.apiKey.deleteMany({
       where: { key: { in: keys } },
     });
+    resetKeyManager(); // Reset the singleton instance
     revalidatePath("/admin");
     return {
       success: `${deleteResponse.count} API key(s) deleted successfully.`,
@@ -39,7 +41,7 @@ export async function resetKeysFailures(keys: string[]) {
     return { error: "No keys provided for reset." };
   }
   try {
-    const keyManager = getKeyManager();
+    const keyManager = await getKeyManager();
     keys.forEach((key) => keyManager.resetKeyFailureCount(key));
     revalidatePath("/admin");
     return {

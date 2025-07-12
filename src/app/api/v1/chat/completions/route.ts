@@ -1,16 +1,16 @@
+import { prisma } from "@/lib/db";
 import {
   geminiToOpenAiStreamChunk,
   OpenAIChatRequest,
   openAiToGeminiRequest,
 } from "@/lib/google-adapter";
 import { getKeyManager } from "@/lib/key-manager";
-import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 const MAX_RETRIES = 3;
 
 export async function POST(request: NextRequest) {
-  const keyManager = getKeyManager();
+  const keyManager = await getKeyManager();
   let lastError: any = null;
   let startTime = Date.now();
 
