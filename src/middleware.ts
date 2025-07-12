@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSettings } from "./lib/settings";
 
 export async function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === "/api/health") {
+  if (request.nextUrl.pathname === "/health") {
     return NextResponse.next();
   }
 
@@ -29,5 +29,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/v1/:path*", "/api/gemini/:path*"],
+  matcher: ["/openai/:path*", "/gemini/:path*", "/v1beta/:path*"],
 };
