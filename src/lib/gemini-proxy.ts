@@ -17,14 +17,14 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
   }key=${apiKey}`;
 
   try {
-    const requestBody = await request.json();
-
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: request.body,
+      // @ts-ignore
+      duplex: "half", // Required to stream request bodies in Node.js
     });
 
     // If the response is streaming, we pipe it through.

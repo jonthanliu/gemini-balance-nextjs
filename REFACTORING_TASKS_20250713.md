@@ -66,7 +66,7 @@
     2. 创建一个日志服务模块，例如 `src/lib/logger.ts`，用于初始化和导出 logger 实例。
     3. 在整个项目中，将 `console.*` 调用替换为结构化 logger 的调用 (e.g., `logger.info()`, `logger.error()`)。
 
-- [ ] **[低] [性能] 优化：改进 `gemini-proxy.ts` 的请求转发**
+- [x] **[低] [性能] 优化：改进 `gemini-proxy.ts` 的请求转发**
   - **文件路径**: `src/lib/gemini-proxy.ts`
   - **问题描述**: `proxyRequest` 函数通过 `await request.json()` 读取请求体，然后再用 `JSON.stringify()` 将其转回字符串。这个过程对于代理转发是低效的，涉及不必要的解析和序列化。
   - **重构方案**:
