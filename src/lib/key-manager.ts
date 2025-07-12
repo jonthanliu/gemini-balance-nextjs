@@ -4,7 +4,7 @@ import { cycle } from "itertools";
  * Manages a pool of API keys, providing round-robin selection,
  * failure tracking, and automatic recovery.
  */
-class KeyManager {
+export class KeyManager {
   private keys: readonly string[];
   private keyCycle: IterableIterator<string>;
   private failureCounts: Map<string, number>;
@@ -96,6 +96,21 @@ class KeyManager {
    * Gets the status of all keys, categorized as valid or invalid.
    * @returns An object containing lists of valid and invalid keys with their failure counts.
    */
+  public getAllKeys(): {
+    key: string;
+    failCount: number;
+    isWorking: boolean;
+  }[] {
+    return this.keys.map((key) => {
+      const failCount = this.failureCounts.get(key)!;
+      return {
+        key,
+        failCount,
+        isWorking: this.isKeyValid(key),
+      };
+    });
+  }
+
   public getKeysByStatus(): {
     valid: { key: string; failures: number }[];
     invalid: { key: string; failures: number }[];
