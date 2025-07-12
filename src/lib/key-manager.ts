@@ -1,5 +1,6 @@
 import { cycle } from "itertools";
 import { prisma } from "./db";
+import logger from "./logger";
 import { getSettings } from "./settings";
 
 /**
@@ -22,7 +23,7 @@ export class KeyManager {
     this.keyCycle = cycle(this.keys);
     this.failureCounts = new Map(this.keys.map((key) => [key, 0]));
     this.maxFailures = maxFailures;
-    console.log(
+    logger.info(
       `KeyManager initialized with ${this.keys.length} keys from database.`
     );
   }
@@ -51,10 +52,9 @@ export class KeyManager {
     if (this.failureCounts.has(key)) {
       const currentFailures = this.failureCounts.get(key)!;
       this.failureCounts.set(key, currentFailures + 1);
-      console.warn(
-        `Failure recorded for key ending in ...${key.slice(
-          -4
-        )}. Total failures: ${currentFailures + 1}`
+      logger.warn(
+        { key: `...${key.slice(-4)}`, failures: currentFailures + 1 },
+        `Failure recorded for key.`
       );
     }
   }
@@ -62,7 +62,10 @@ export class KeyManager {
   public resetKeyFailureCount(key: string): void {
     if (this.failureCounts.has(key)) {
       this.failureCounts.set(key, 0);
-      console.log(`Failure count reset for key ending in ...${key.slice(-4)}.`);
+      logger.info(
+        { key: `...${key.slice(-4)}` },
+        `Failure count reset for key.`
+      );
     }
   }
 
@@ -114,7 +117,7 @@ async function createKeyManager(): Promise<KeyManager> {
       await prisma.apiKey.createMany({
         data: keysToCreate.map((key) => ({ key })),
       });
-      console.log(
+      logger.info(
         `Synced ${keysToCreate.length} new keys from environment to database.`
       );
     }

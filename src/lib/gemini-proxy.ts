@@ -1,5 +1,6 @@
 import { getKeyManager } from "@/lib/key-manager";
 import { NextRequest, NextResponse } from "next/server";
+import logger from "./logger";
 
 const GOOGLE_API_HOST =
   process.env.GOOGLE_API_HOST || "https://generativelanguage.googleapis.com";
@@ -44,7 +45,7 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
     const data = await geminiResponse.json();
     return NextResponse.json(data, { status: geminiResponse.status });
   } catch (error: any) {
-    console.error("Error proxying to Gemini:", error);
+    logger.error({ error }, "Error proxying to Gemini");
     return NextResponse.json(
       { error: "Failed to proxy request to Gemini" },
       { status: 500 }

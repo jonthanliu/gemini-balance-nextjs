@@ -15,6 +15,7 @@
         "geist": "^1.4.2",
         "itertools": "^2.4.1",
         "next": "15.3.5",
+        "pino": "^9.7.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0"
     },
@@ -26,6 +27,7 @@
         "@types/react-dom": "^19",
         "eslint": "^9",
         "eslint-config-next": "15.3.5",
+        "pino-pretty": "^13.0.0",
         "prisma": "^6.11.1",
         "tailwindcss": "^4",
         "tsx": "^4.20.3",

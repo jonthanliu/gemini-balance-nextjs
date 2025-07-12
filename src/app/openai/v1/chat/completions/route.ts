@@ -4,6 +4,7 @@ import {
   OpenAIChatRequest,
   openAiToGeminiRequest,
 } from "@/lib/google-adapter";
+import logger from "@/lib/logger";
 import { EnhancedGenerateContentResponse } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -32,7 +33,7 @@ function transformGeminiStreamToOpenAIStream(
               controller.enqueue(openAIChunk);
             }
           } catch (error) {
-            console.error("Error parsing stream chunk:", error);
+            logger.error({ error }, "Error parsing stream chunk");
             // Decide if we should bubble up the error or just skip the chunk
           }
         }
