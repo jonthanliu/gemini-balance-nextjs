@@ -1,7 +1,8 @@
 import { getKeyManager } from "@/lib/key-manager";
 import { NextRequest, NextResponse } from "next/server";
 
-const GOOGLE_API_HOST = "https://generativelanguage.googleapis.com";
+const GOOGLE_API_HOST =
+  process.env.GOOGLE_API_HOST || "https://generativelanguage.googleapis.com";
 
 export async function proxyRequest(request: NextRequest, pathPrefix: string) {
   const keyManager = await getKeyManager();

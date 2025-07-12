@@ -35,7 +35,7 @@
     3. **简化流转换**: 重构 `completions/route.ts` 中的 `transformGeminiStreamToOpenAIStream` 函数。使其直接处理由 SDK 返回的流对象，而不是手动的 `Response` 对象。
     4. **清理无用代码**: 完全移除 `cleanJsonString`, `safeJsonParse`, 和 `processBufferContent` 这三个手动解析流的辅助函数。
 
-- [ ] **[高] [可读性] 配置：将硬编码的 URL 外部化**
+- [x] **[高] [可读性] 配置：将硬编码的 URL 外部化**
 
   - **文件路径**: `src/lib/gemini-proxy.ts`, `src/app/openai/v1/chat/completions/route.ts`
   - **问题描述**: 外部服务 `https://generativelanguage.googleapis.com` 的 URL 被硬编码在代码中，属于“魔术字符串”，不利于环境配置和维护。
