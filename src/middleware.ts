@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { getSettings } from "./lib/settings";
 
 export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === "/api/health") {
+    return NextResponse.next();
+  }
+
   const { ALLOWED_TOKENS } = await getSettings();
   const allowedTokens = ALLOWED_TOKENS.split(",").filter(Boolean);
 
