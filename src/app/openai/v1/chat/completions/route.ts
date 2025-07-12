@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        keyManager.resetKeyFailureCount(apiKey);
+
         const stream = transformGeminiStreamToOpenAIStream(
           geminiResponse,
           model
