@@ -13,6 +13,7 @@
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
         "@prisma/client": "^6.11.1",
+        "geist": "^1.4.2",
         "itertools": "^2.4.1",
         "next": "15.3.5",
         "react": "^19.0.0",

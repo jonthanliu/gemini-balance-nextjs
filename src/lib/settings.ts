@@ -35,10 +35,8 @@ export async function getSettings(): Promise<Settings> {
         // 环境变量中也不存在，使用硬编码的默认值
         value = defaultSettings[key];
       }
-      // 将初始值写入数据库
-      await prisma.setting.create({
-        data: { key, value },
-      });
+      // 在只读环境中，我们不应该尝试写入数据库。
+      // 写入操作应仅通过管理后台的 Server Action 进行。
     }
     resolvedSettings[key] = value;
   }
