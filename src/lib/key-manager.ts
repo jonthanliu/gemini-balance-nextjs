@@ -105,11 +105,19 @@ const getKeysFromEnv = (): string[] => {
 };
 
 async function createKeyManager(): Promise<KeyManager> {
-  // 1. Sync keys from environment to database
+  // 1. Load keys from environment as the primary source
   const keysFromEnv = getKeysFromEnv();
-  if (keysFromEnv.length > 0) {
+
+  // 2. Load keys from the database as a secondary source
+  const keysFromDb = (await prisma.apiKey.findMany()).map((k) => k.key);
+
+  // 3. Combine and deduplicate keys, giving priority to environment keys
+  const combinedKeys = [...new Set([...keysFromEnv, ...keysFromDb])];
+
+  // 4. Sync combined keys back to the database for persistence
+  if (combinedKeys.length > 0) {
     const keysInDb = await prisma.apiKey.findMany();
-    const keysToCreate = keysFromEnv.filter(
+    const keysToCreate = combinedKeys.filter(
       (envKey) => !keysInDb.some((dbKey) => dbKey.key === envKey)
     );
 
@@ -117,21 +125,16 @@ async function createKeyManager(): Promise<KeyManager> {
       await prisma.apiKey.createMany({
         data: keysToCreate.map((key) => ({ key })),
       });
-      logger.info(
-        `Synced ${keysToCreate.length} new keys from environment to database.`
-      );
+      logger.info(`Synced ${keysToCreate.length} new keys to the database.`);
     }
   }
 
-  // 2. Load all keys from the database to be used at runtime
-  const allDbKeys = await prisma.apiKey.findMany();
-  const apiKeys = allDbKeys.map((k) => k.key);
-
-  // 3. Load settings using the settings service
+  // 5. Load settings using the settings service
   const settings = await getSettings();
-  const maxFailures = parseInt(settings.MAX_FAILURES, 10);
+  const maxFailures = settings.MAX_FAILURES;
 
-  return new KeyManager(apiKeys, maxFailures);
+  // 6. Initialize KeyManager with the combined list of keys
+  return new KeyManager(combinedKeys, maxFailures);
 }
 
 /**

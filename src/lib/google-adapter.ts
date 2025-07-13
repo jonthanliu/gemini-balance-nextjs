@@ -1,115 +1,186 @@
-/**
- * This adapter module provides functions to convert data structures
- * between the OpenAI Chat Completions API format and the Google Gemini API format.
- */
+// src/lib/google-adapter.ts
 
-// --- Type Definitions (simplified for clarity) ---
+import { getSettings } from "./settings";
 
-// OpenAI-like request format
-export interface OpenAIChatMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string;
+interface GeminiPart {
+  text?: string;
+  inline_data?: {
+    mime_type: string;
+    data: string;
+  };
+  image_url?: string;
 }
 
-export interface OpenAIChatRequest {
-  messages: OpenAIChatMessage[];
-  model: string;
-  stream?: boolean;
-  // Other properties like temperature, max_tokens, etc. are omitted for simplicity
-}
-
-// Gemini-like request format
-export interface GeminiPart {
-  text: string;
-}
-
-export interface GeminiContent {
-  role: "user" | "model";
+interface GeminiContent {
+  role: string;
   parts: GeminiPart[];
 }
 
-export interface GeminiRequest {
-  contents: GeminiContent[];
-  // generationConfig, safetySettings, etc.
+interface GeminiTool {
+  functionDeclarations?: any[];
+  codeExecution?: object;
+  googleSearch?: object;
 }
 
-/**
- * Converts an array of OpenAI-formatted messages to Gemini-formatted contents.
- *
- * - Merges consecutive messages from the same role.
- * - Handles the "system" role by prepending its content to the next user message.
- * - Ensures alternating "user" and "model" roles as required by Gemini.
- *
- * @param messages - An array of OpenAI chat messages.
- * @returns An array of Gemini content objects.
- */
-export function openAiToGeminiRequest(
-  messages: OpenAIChatMessage[]
-): GeminiContent[] {
-  const contents: GeminiContent[] = [];
-  let systemPrompt: string | null = null;
-  let lastRole: "user" | "model" | null = null;
+interface GeminiRequestBody {
+  contents: GeminiContent[];
+  tools?: GeminiTool[];
+  generationConfig?: any;
+  systemInstruction?: any;
+}
 
-  for (const message of messages) {
-    if (message.role === "system") {
-      systemPrompt =
-        (systemPrompt ? systemPrompt + "\n" : "") + message.content;
-      continue;
+// Based on the Python implementation, this function cleans the JSON schema
+// properties that are not supported by the Gemini API.
+function cleanJsonSchemaProperties(obj: any): any {
+  if (typeof obj !== "object" || obj === null) {
+    return obj;
+  }
+
+  const unsupportedFields = new Set([
+    "exclusiveMaximum",
+    "exclusiveMinimum",
+    "const",
+    "examples",
+    "contentEncoding",
+    "contentMediaType",
+    "if",
+    "then",
+    "else",
+    "allOf",
+    "anyOf",
+    "oneOf",
+    "not",
+    "definitions",
+    "$schema",
+    "$id",
+    "$ref",
+    "$comment",
+    "readOnly",
+    "writeOnly",
+  ]);
+
+  if (Array.isArray(obj)) {
+    return obj.map((item: any) => cleanJsonSchemaProperties(item));
+  }
+
+  const cleaned: { [key: string]: any } = {};
+  for (const key in obj) {
+    if (!unsupportedFields.has(key)) {
+      cleaned[key] = cleanJsonSchemaProperties(obj[key]);
     }
+  }
+  return cleaned;
+}
 
-    // Gemini roles are 'user' and 'model'
-    const currentRole = message.role === "assistant" ? "model" : "user";
+// Builds the 'tools' array based on the model and request payload.
+async function buildTools(
+  model: string,
+  payload: GeminiRequestBody
+): Promise<GeminiTool[]> {
+  const settings = await getSettings();
+  let tool: GeminiTool = {};
 
-    // Prepend system prompt to the first user message
-    let content = message.content;
-    if (currentRole === "user" && systemPrompt) {
-      content = `${systemPrompt}\n\n${content}`;
-      systemPrompt = null; // Only use it once
-    }
-
-    if (lastRole === currentRole) {
-      // Merge with the previous message if roles are the same
-      const lastContent = contents[contents.length - 1];
-      lastContent.parts.push({ text: `\n${content}` });
-    } else {
-      contents.push({
-        role: currentRole,
-        parts: [{ text: content }],
-      });
-      lastRole = currentRole;
+  if (payload && typeof payload === "object" && payload.tools) {
+    const tools = Array.isArray(payload.tools)
+      ? payload.tools
+      : [payload.tools];
+    const functionDeclarations = tools
+      .flatMap((t: GeminiTool) => t.functionDeclarations || [])
+      .map(cleanJsonSchemaProperties);
+    if (functionDeclarations.length > 0) {
+      tool.functionDeclarations = functionDeclarations;
     }
   }
 
-  return contents;
+  const hasImage = payload.contents?.some((c: GeminiContent) =>
+    c.parts?.some((p: GeminiPart) => p.inline_data || p.image_url)
+  );
+
+  if (
+    settings.TOOLS_CODE_EXECUTION_ENABLED &&
+    !model.endsWith("-search") &&
+    !model.includes("-thinking") &&
+    !hasImage
+  ) {
+    tool.codeExecution = {};
+  }
+
+  if (model.endsWith("-search")) {
+    tool.googleSearch = {};
+  }
+
+  if (tool.functionDeclarations) {
+    delete tool.googleSearch;
+    delete tool.codeExecution;
+  }
+
+  return tool && Object.keys(tool).length > 0 ? [tool] : [];
 }
 
-/**
- * Converts a chunk of a Gemini API stream response into an OpenAI-compatible
- * Server-Sent Event (SSE) chunk.
- *
- * @param geminiChunk - A chunk from the Gemini API response.
- * @param model - The model name to include in the response.
- * @returns A string formatted as an OpenAI-compatible SSE chunk.
- */
-export function geminiToOpenAiStreamChunk(
-  geminiChunk: any,
-  model: string
-): string {
-  const choice = {
-    index: 0,
-    delta: {
-      content: geminiChunk.candidates?.[0]?.content?.parts?.[0]?.text || "",
-    },
-    finish_reason: geminiChunk.candidates?.[0]?.finishReason || null,
+// Filters out contents with empty or invalid parts.
+function filterEmptyParts(contents: GeminiContent[]): GeminiContent[] {
+  if (!contents) return [];
+  return contents
+    .map((content: GeminiContent) => {
+      if (!content || !Array.isArray(content.parts)) return null;
+      const validParts = content.parts.filter(
+        (part: GeminiPart) =>
+          part && typeof part === "object" && Object.keys(part).length > 0
+      );
+      if (validParts.length === 0) return null;
+      return { ...content, parts: validParts };
+    })
+    .filter(Boolean) as GeminiContent[];
+}
+
+// Gets safety settings based on the model.
+async function getSafetySettings(model: string): Promise<any[]> {
+  const settings = await getSettings();
+  // In the future, we might have model-specific settings like 'gemini-2.0-flash-exp'
+  return settings.SAFETY_SETTINGS || [];
+}
+
+// Main function to build the final payload for the Gemini API.
+export async function buildGeminiRequest(
+  model: string,
+  requestBody: GeminiRequestBody
+): Promise<any> {
+  const settings = await getSettings();
+  const filteredContents = filterEmptyParts(requestBody.contents);
+  const tools = await buildTools(model, requestBody);
+  const safetySettings = await getSafetySettings(model);
+
+  let generationConfig = requestBody.generationConfig || {};
+  if (generationConfig.maxOutputTokens === null) {
+    delete generationConfig.maxOutputTokens;
+  }
+
+  // Handle thinkingConfig
+  if (generationConfig.thinkingConfig === undefined) {
+    if (model.endsWith("-non-thinking")) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    } else if (
+      settings.THINKING_BUDGET_MAP &&
+      settings.THINKING_BUDGET_MAP[model]
+    ) {
+      generationConfig.thinkingConfig = {
+        thinkingBudget: settings.THINKING_BUDGET_MAP[model],
+      };
+    }
+  }
+
+  const payload = {
+    contents: filteredContents,
+    tools,
+    safetySettings,
+    generationConfig,
+    systemInstruction: requestBody.systemInstruction,
   };
 
-  const streamData = {
-    id: `chatcmpl-${Date.now()}`,
-    object: "chat.completion.chunk",
-    created: Math.floor(Date.now() / 1000),
-    model,
-    choices: [choice],
-  };
+  if (model.endsWith("-image") || model.endsWith("-image-generation")) {
+    delete payload.systemInstruction;
+    payload.generationConfig.responseModalities = ["Text", "Image"];
+  }
 
-  return `data: ${JSON.stringify(streamData)}\n\n`;
+  return payload;
 }

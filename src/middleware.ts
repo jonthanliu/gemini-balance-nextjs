@@ -1,31 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSettings } from "./lib/settings";
+// This function handles API token authentication for the proxy
+async function handleProxyAuth(request: NextRequest) {
+  const { ALLOWED_TOKENS, AUTH_TOKEN } = process.env;
+  const allowedTokens = (ALLOWED_TOKENS || "").split(",").filter(Boolean);
+  const validTokens = [...allowedTokens, AUTH_TOKEN].filter(Boolean);
 
-// This function handles API token authentication
-async function handleApiAuth(request: NextRequest) {
-  const { ALLOWED_TOKENS } = await getSettings();
-  const allowedTokens = ALLOWED_TOKENS.split(",").filter(Boolean);
+  const key = request.nextUrl.searchParams.get("key");
+  const xGoogApiKey = request.headers.get("x-goog-api-key");
 
-  // If no tokens are set, access is denied by default for security.
-  if (allowedTokens.length === 0) {
-    return new NextResponse("Forbidden: No API tokens configured", {
-      status: 403,
-    });
+  if (key && validTokens.includes(key)) {
+    return NextResponse.next();
+  }
+
+  if (xGoogApiKey && validTokens.includes(xGoogApiKey)) {
+    return NextResponse.next();
   }
 
   const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new NextResponse("Unauthorized: Missing or invalid bearer token", {
-      status: 401,
-    });
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    if (validTokens.includes(token)) {
+      return NextResponse.next();
+    }
   }
 
-  const token = authHeader.substring(7); // "Bearer ".length
-  if (!allowedTokens.includes(token)) {
-    return new NextResponse("Forbidden: Invalid API token", { status: 403 });
+  console.warn(
+    `Forbidden: Invalid API token provided for path: ${request.nextUrl.pathname}`
+  );
+  return new NextResponse("Forbidden: Invalid API token", { status: 403 });
+}
+
+// This function handles API token authentication for OpenAI routes
+async function handleOpenAIAuth(request: NextRequest) {
+  const { ALLOWED_TOKENS, AUTH_TOKEN } = process.env;
+  const allowedTokens = (ALLOWED_TOKENS || "").split(",").filter(Boolean);
+  const validTokens = [...allowedTokens, AUTH_TOKEN].filter(Boolean);
+
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    if (validTokens.includes(token)) {
+      return NextResponse.next();
+    }
   }
 
-  return NextResponse.next();
+  console.warn(
+    `Forbidden: Invalid API token provided for path: ${request.nextUrl.pathname}`
+  );
+  return new NextResponse("Forbidden: Invalid API token", { status: 403 });
 }
 
 // This function handles UI authentication via cookies
@@ -49,6 +71,7 @@ async function handleUiAuth(request: NextRequest) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  console.log(`Request received for path: ${pathname}`);
 
   // Exclude public paths and the auth page itself
   if (
@@ -70,12 +93,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Route to API authentication for all other matched routes
-  return handleApiAuth(request);
+  // API proxy routes and health checks should not be authenticated here.
+  // They are proxied to the backend service which has its own auth.
+  if (pathname.startsWith("/gemini") || pathname.startsWith("/v1beta")) {
+    return handleProxyAuth(request);
+  }
+
+  if (pathname.startsWith("/openai")) {
+    return handleOpenAIAuth(request);
+  }
+
+  if (pathname.startsWith("/health")) {
+    return NextResponse.next();
+  }
+
+  // Route to UI authentication for all other matched routes
+  return handleUiAuth(request);
 }
 
 export const config = {
-  runtime: "nodejs", // Specify Node.js runtime
   matcher: [
     "/",
     "/admin/:path*",

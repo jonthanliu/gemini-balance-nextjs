@@ -2,8 +2,29 @@ import { prisma } from "./db";
 
 // 定义默认配置
 const defaultSettings = {
-  ALLOWED_TOKENS: "", // 默认允许所有令牌，以逗号分隔
-  MAX_FAILURES: "5", // 默认最大失败次数
+  ALLOWED_TOKENS: "",
+  MAX_FAILURES: "3",
+  PROXY_URL: "", // Optional proxy URL
+  // Booleans are stored as strings "true" or "false"
+  TOOLS_CODE_EXECUTION_ENABLED: "false",
+  // JSON objects are stored as strings
+  SAFETY_SETTINGS: JSON.stringify([
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+  ]),
+  THINKING_BUDGET_MAP: JSON.stringify({}),
+};
+
+// Define a more specific type for settings to help with parsing
+type ParsedSettings = {
+  ALLOWED_TOKENS: string;
+  MAX_FAILURES: number;
+  PROXY_URL: string;
+  TOOLS_CODE_EXECUTION_ENABLED: boolean;
+  SAFETY_SETTINGS: { category: string; threshold: string }[];
+  THINKING_BUDGET_MAP: { [key: string]: number };
 };
 
 type Settings = typeof defaultSettings;
@@ -13,9 +34,11 @@ let settingsCache: Settings | null = null;
  * 获取所有配置项。
  * 优先从缓存读取，否则从数据库加载，并处理环境变量和默认值。
  */
-export async function getSettings(): Promise<Settings> {
+export async function getSettings(): Promise<ParsedSettings> {
+  // This function now returns a parsed object, not the raw string-based one.
+  // Caching for the raw settings is still useful.
   if (settingsCache) {
-    return settingsCache;
+    return parseSettings(settingsCache);
   }
 
   const settingsFromDb = await prisma.setting.findMany();
@@ -27,22 +50,30 @@ export async function getSettings(): Promise<Settings> {
     let value = settingsMap.get(key);
 
     if (value === undefined) {
-      // 数据库中不存在，尝试从环境变量读取
       const envValue = process.env[key];
       if (envValue !== undefined) {
         value = envValue;
       } else {
-        // 环境变量中也不存在，使用硬编码的默认值
         value = defaultSettings[key];
       }
-      // 在只读环境中，我们不应该尝试写入数据库。
-      // 写入操作应仅通过管理后台的 Server Action 进行。
     }
     resolvedSettings[key] = value;
   }
 
   settingsCache = resolvedSettings;
-  return settingsCache;
+  return parseSettings(settingsCache);
+}
+
+function parseSettings(settings: Settings): ParsedSettings {
+  return {
+    ALLOWED_TOKENS: settings.ALLOWED_TOKENS,
+    MAX_FAILURES: parseInt(settings.MAX_FAILURES, 10),
+    PROXY_URL: settings.PROXY_URL,
+    TOOLS_CODE_EXECUTION_ENABLED:
+      settings.TOOLS_CODE_EXECUTION_ENABLED === "true",
+    SAFETY_SETTINGS: JSON.parse(settings.SAFETY_SETTINGS),
+    THINKING_BUDGET_MAP: JSON.parse(settings.THINKING_BUDGET_MAP),
+  };
 }
 
 /**

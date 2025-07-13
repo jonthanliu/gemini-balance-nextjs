@@ -10,6 +10,8 @@ services:
     environment:
       - GEMINI_API_KEYS=${GEMINI_API_KEYS}
       - MAX_FAILURES=${MAX_FAILURES}
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - ALLOWED_TOKENS=${ALLOWED_TOKENS}
       - DATABASE_URL=file:/app/prisma/dev.db
     volumes:
       # Mount the prisma folder to persist the database file
