@@ -1,22 +1,39 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { clearAllLogs, deleteLogs, getLogs } from "./actions";
 
 type Log = {
   id: number;
   createdAt: Date;
+  apiKey?: string;
+  errorType?: string;
+  errorMessage?: string;
+  errorDetails?: string;
+  isSuccess?: boolean;
+  statusCode?: number;
+  latency?: number;
   [key: string]: any;
 };
 
 type LogType = "request" | "error";
 
-export function LogCenter() {
-  const [logType, setLogType] = useState<LogType>("request");
+type KeyInfo = {
+  key: string;
+  failCount: number;
+};
+
+export function LogCenter({ allKeys }: { allKeys: KeyInfo[] }) {
+  const searchParams = useSearchParams();
+  const initialLogType = (searchParams.get("logType") as LogType) || "error";
+  const initialSearch = searchParams.get("search") || "";
+
+  const [logType, setLogType] = useState<LogType>(initialLogType);
   const [logs, setLogs] = useState<Log[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [selected, setSelected] = useState<number[]>([]);
   const [isPending, startTransition] = useTransition();
 
@@ -60,10 +77,48 @@ export function LogCenter() {
     }
   };
 
-  // Fetch logs on initial render and when dependencies change
   useEffect(() => {
     fetchLogs();
-  }, [logType, page]);
+  }, [logType, page, search]);
+
+  const renderLogDetails = (log: Log) => {
+    if (logType === "request") {
+      return (
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div>
+            <span className="font-semibold">API Key:</span>{" "}
+            <span className="font-mono">...{log.apiKey}</span>
+          </div>
+          <div>
+            <span className="font-semibold">Status:</span>{" "}
+            <span className={log.isSuccess ? "text-green-600" : "text-red-600"}>
+              {log.statusCode}
+            </span>
+          </div>
+          <div>
+            <span className="font-semibold">Latency:</span> {log.latency}ms
+          </div>
+        </div>
+      );
+    }
+    // Error Log
+    return (
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <span className="font-semibold">API Key:</span>{" "}
+          <span className="font-mono">
+            {log.apiKey ? `...${log.apiKey.slice(-4)}` : "N/A"}
+          </span>
+        </div>
+        <div>
+          <span className="font-semibold">Type:</span> {log.errorType}
+        </div>
+        <div className="col-span-2">
+          <span className="font-semibold">Message:</span> {log.errorMessage}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
@@ -73,17 +128,11 @@ export function LogCenter() {
       <div className="border-b border-gray-200 mb-4">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
-            onClick={() => setLogType("request")}
-            className={`${
-              logType === "request"
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-          >
-            Request Logs
-          </button>
-          <button
-            onClick={() => setLogType("error")}
+            onClick={() => {
+              setLogType("error");
+              setPage(1);
+              setSelected([]);
+            }}
             className={`${
               logType === "error"
                 ? "border-indigo-500 text-indigo-600"
@@ -92,26 +141,43 @@ export function LogCenter() {
           >
             Error Logs
           </button>
+          <button
+            onClick={() => {
+              setLogType("request");
+              setPage(1);
+              setSelected([]);
+            }}
+            className={`${
+              logType === "request"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            Request Logs
+          </button>
         </nav>
       </div>
 
       {/* Filters and Actions */}
       <div className="flex justify-between items-center mb-4">
-        <form onSubmit={handleSearch} className="flex items-center space-x-2">
-          <input
-            type="text"
+        <div className="flex items-center space-x-2">
+          <select
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
-            className="border rounded px-2 py-1"
-          />
-          <button
-            type="submit"
-            className="bg-blue-500 text-white px-4 py-1 rounded"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+              fetchLogs();
+            }}
+            className="border rounded px-2 py-1 bg-white"
           >
-            Search
-          </button>
-        </form>
+            <option value="">All Keys</option>
+            {allKeys.map((k) => (
+              <option key={k.key} value={k.key}>
+                ...{k.key.slice(-4)} (Fails: {k.failCount})
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="space-x-2">
           <button
             onClick={handleDeleteSelected}
@@ -130,129 +196,51 @@ export function LogCenter() {
         </div>
       </div>
 
-      {/* Log Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="w-12 px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  onChange={(e) =>
-                    setSelected(e.target.checked ? logs.map((l) => l.id) : [])
-                  }
-                  checked={selected.length === logs.length && logs.length > 0}
-                />
-              </th>
-              {logType === "request" ? (
-                <>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left font-medium text-gray-500"
-                  >
-                    API Key
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left font-medium text-gray-500"
-                  >
-                    Status
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left font-medium text-gray-500"
-                  >
-                    Latency
-                  </th>
-                </>
-              ) : (
-                <>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left font-medium text-gray-500"
-                  >
-                    Error Type
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-left font-medium text-gray-500"
-                  >
-                    Message
-                  </th>
-                </>
-              )}
-              <th
-                scope="col"
-                className="px-4 py-3 text-left font-medium text-gray-500"
-              >
-                Time
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {isPending ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8">
-                  <div className="font-medium">Loading...</div>
-                </td>
-              </tr>
-            ) : logs.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8">
-                  <div className="font-medium">No logs found.</div>
-                </td>
-              </tr>
-            ) : (
-              logs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(log.id)}
-                      onChange={(e) =>
-                        setSelected(
-                          e.target.checked
-                            ? [...selected, log.id]
-                            : selected.filter((id) => id !== log.id)
-                        )
-                      }
-                    />
-                  </td>
-                  {logType === "request" ? (
-                    <>
-                      <td className="px-4 py-3 font-mono">...{log.apiKey}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={
-                            log.isSuccess ? "text-green-600" : "text-red-600"
-                          }
-                        >
-                          {log.statusCode}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">{log.latency}ms</td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium text-red-600">
-                        {log.errorType}
-                      </td>
-                      <td
-                        className="px-4 py-3 truncate max-w-sm"
-                        title={log.errorMessage}
-                      >
-                        {log.errorMessage}
-                      </td>
-                    </>
+      {/* Log List */}
+      <div className="space-y-2">
+        {isPending ? (
+          <div className="text-center py-8">Loading...</div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-8">No logs found.</div>
+        ) : (
+          logs.map((log) => (
+            <details key={log.id} className="bg-gray-50 rounded-lg p-2 border">
+              <summary className="cursor-pointer flex items-center justify-between text-sm">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="mr-4"
+                    checked={selected.includes(log.id)}
+                    onChange={(e) => {
+                      e.stopPropagation(); // Prevent details from toggling
+                      setSelected(
+                        e.target.checked
+                          ? [...selected, log.id]
+                          : selected.filter((id) => id !== log.id)
+                      );
+                    }}
+                  />
+                  {renderLogDetails(log)}
+                </div>
+                <span className="text-xs text-gray-500">
+                  {new Date(log.createdAt).toLocaleString()}
+                </span>
+              </summary>
+              <div className="mt-2 pt-2 border-t">
+                <h4 className="font-semibold text-xs mb-1">Details:</h4>
+                <pre className="bg-gray-900 text-white text-xs p-2 rounded overflow-x-auto">
+                  {JSON.stringify(
+                    logType === "error"
+                      ? JSON.parse(log.errorDetails || "{}")
+                      : log,
+                    null,
+                    2
                   )}
-                  <td className="px-4 py-3 text-gray-500">
-                    {new Date(log.createdAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                </pre>
+              </div>
+            </details>
+          ))
+        )}
       </div>
 
       {/* Pagination */}

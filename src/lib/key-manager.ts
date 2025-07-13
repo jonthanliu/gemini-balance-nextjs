@@ -87,10 +87,16 @@ export class KeyManager {
 
 // --- Singleton Instance ---
 
-let keyManagerPromise: Promise<KeyManager> | null = null;
+// A more robust singleton pattern that works across hot-reloads in development.
+const globalWithKeyManager = global as typeof global & {
+  keyManagerPromise: Promise<KeyManager> | null;
+};
 
 export function resetKeyManager() {
-  keyManagerPromise = null;
+  if (globalWithKeyManager.keyManagerPromise) {
+    globalWithKeyManager.keyManagerPromise = null;
+    logger.info("KeyManager instance reset.");
+  }
 }
 
 const getKeysFromEnv = (): string[] => {
@@ -141,8 +147,11 @@ async function createKeyManager(): Promise<KeyManager> {
  * Returns the singleton instance of the KeyManager.
  */
 export function getKeyManager(): Promise<KeyManager> {
-  if (!keyManagerPromise) {
-    keyManagerPromise = createKeyManager();
+  if (!globalWithKeyManager.keyManagerPromise) {
+    logger.info("No existing KeyManager instance found, creating a new one.");
+    globalWithKeyManager.keyManagerPromise = createKeyManager();
+  } else {
+    logger.info("Returning existing KeyManager instance.");
   }
-  return keyManagerPromise;
+  return globalWithKeyManager.keyManagerPromise;
 }

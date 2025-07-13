@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { AddKeyForm } from "./AddKeyForm";
 import { ConfigCard } from "./ConfigCard";
 import { KeyList } from "./KeyList";
@@ -20,7 +21,16 @@ const StatCard = ({
 );
 
 export function DashboardClient({ stats }: { stats: any }) {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") || "dashboard";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const tabs = [
     { id: "dashboard", label: "Monitoring Dashboard" },
@@ -73,7 +83,9 @@ export function DashboardClient({ stats }: { stats: any }) {
             <AddKeyForm />
           </div>
         )}
-        {activeTab === "logs" && <LogCenter />}
+        {activeTab === "logs" && (
+          <LogCenter allKeys={stats.validKeys.concat(stats.invalidKeys)} />
+        )}
       </div>
     </div>
   );

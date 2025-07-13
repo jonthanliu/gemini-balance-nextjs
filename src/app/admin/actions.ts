@@ -146,6 +146,7 @@ export async function getLogs(filters: LogFilters) {
       where.apiKey = { contains: search };
     } else {
       where.OR = [
+        { apiKey: { contains: search } },
         { errorType: { contains: search } },
         { errorMessage: { contains: search } },
       ];

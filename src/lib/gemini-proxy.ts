@@ -1,6 +1,7 @@
 import { getKeyManager } from "@/lib/key-manager";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "./db";
 import { buildGeminiRequest } from "./google-adapter";
 import logger from "./logger";
 import { getSettings } from "./settings";
@@ -9,14 +10,20 @@ const GOOGLE_API_HOST =
   process.env.GOOGLE_API_HOST || "https://generativelanguage.googleapis.com";
 
 export async function proxyRequest(request: NextRequest, pathPrefix: string) {
+  const startTime = Date.now();
+  let apiKey = "unknown";
+  let model = "unknown";
+  let statusCode: number | null = null;
+  let isSuccess = false;
+
   try {
     const keyManager = await getKeyManager();
-    const apiKey = keyManager.getNextWorkingKey();
+    apiKey = keyManager.getNextWorkingKey();
 
     // Reconstruct the original Gemini API URL
     const url = new URL(request.url);
     const modelPath = url.pathname.replace(pathPrefix, "");
-    const model = modelPath.split("/").pop()?.split(":")[0] ?? "";
+    model = modelPath.split("/").pop()?.split(":")[0] ?? ""; // Assign to the outer model variable
     const geminiUrl = `${GOOGLE_API_HOST}${modelPath}${
       url.search ? url.search + "&" : "?"
     }key=${apiKey}`;
@@ -58,7 +65,20 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
     // Otherwise, we return the JSON response directly.
     // Check if the response from Gemini is not OK
     if (!geminiResponse.ok) {
+      statusCode = geminiResponse.status;
+      keyManager.handleApiFailure(apiKey);
       const errorBody = await geminiResponse.json();
+      const errorMessage = errorBody.error?.message || "Unknown error";
+
+      await prisma.errorLog.create({
+        data: {
+          apiKey: apiKey,
+          errorType: "gemini_api_error",
+          errorMessage: errorMessage,
+          errorDetails: JSON.stringify(errorBody),
+        },
+      });
+
       logger.error(
         {
           status: geminiResponse.status,
@@ -70,10 +90,15 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
       return NextResponse.json(errorBody, { status: geminiResponse.status });
     }
 
+    // Success
+    isSuccess = true;
+    statusCode = geminiResponse.status;
+
     // Otherwise, we return the JSON response directly.
     const data = await geminiResponse.json();
     return NextResponse.json(data, { status: geminiResponse.status });
   } catch (error: any) {
+    statusCode = 500;
     if (
       error.message.includes("No API keys available") ||
       error.message.includes("KeyManager must be initialized")
@@ -116,5 +141,18 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
       { error: "Failed to proxy request to Gemini" },
       { status: 500 }
     );
+  } finally {
+    if (statusCode) {
+      const latency = Date.now() - startTime;
+      await prisma.requestLog.create({
+        data: {
+          apiKey: apiKey,
+          model: model,
+          statusCode: statusCode,
+          isSuccess: isSuccess,
+          latency: latency,
+        },
+      });
+    }
   }
 }

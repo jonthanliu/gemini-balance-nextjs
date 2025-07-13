@@ -24,9 +24,18 @@ export const KeyList = ({
             ...{key.key.slice(-4)}
           </span>
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">
-              Fails: {key.failCount}
-            </span>
+            <a
+              href={`/admin?tab=logs&logType=error&search=${key.key}`}
+              className="text-xs text-gray-500 hover:underline"
+              title="Click to view error logs for this key"
+            >
+              Fails:{" "}
+              <span
+                className={key.failCount > 0 ? "text-red-500 font-bold" : ""}
+              >
+                {key.failCount}
+              </span>
+            </a>
             <span
               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                 isInvalid
