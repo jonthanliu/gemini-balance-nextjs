@@ -2,7 +2,10 @@ import { getKeyManager } from "@/lib/key-manager";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "./db";
-import { buildGeminiRequest } from "./google-adapter";
+import {
+  buildGeminiRequest,
+  formatGoogleModelsToOpenAI,
+} from "./google-adapter";
 import logger from "./logger";
 import { getSettings } from "./settings";
 
@@ -96,6 +99,15 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
 
     // Otherwise, we return the JSON response directly.
     const data = await geminiResponse.json();
+
+    // If the request is for OpenAI models, format the response.
+    if (url.pathname.startsWith("/openai/v1/models")) {
+      const formattedData = formatGoogleModelsToOpenAI(data);
+      return NextResponse.json(formattedData, {
+        status: geminiResponse.status,
+      });
+    }
+
     return NextResponse.json(data, { status: geminiResponse.status });
   } catch (error: any) {
     statusCode = 500;

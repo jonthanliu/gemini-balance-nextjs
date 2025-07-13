@@ -184,3 +184,19 @@ export async function buildGeminiRequest(
 
   return payload;
 }
+
+export function formatGoogleModelsToOpenAI(googleModels: any): any {
+  if (!googleModels || !Array.isArray(googleModels.models)) {
+    return { object: "list", data: [] };
+  }
+
+  return {
+    object: "list",
+    data: googleModels.models.map((model: any) => ({
+      id: model.name.replace("models/", ""),
+      object: "model",
+      created: Date.now(),
+      owned_by: "google",
+    })),
+  };
+}
