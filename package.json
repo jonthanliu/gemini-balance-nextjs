@@ -3,11 +3,12 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "next dev --turbopack | pino-pretty",
+        "dev": "next dev | pino-pretty",
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "db:migrate": "tsx scripts/migrate.ts"
+        "db:migrate": "tsx scripts/migrate.ts",
+        "postinstall": "prisma generate"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",

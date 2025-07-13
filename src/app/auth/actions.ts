@@ -19,10 +19,11 @@ export async function login(
     cookieStore.set("auth_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax",
       path: "/",
+      maxAge: 60 * 60 * 24,
     });
-    return { success: true };
+    redirect("/admin");
   } else {
     return { error: "Invalid token." };
   }

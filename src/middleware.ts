@@ -54,15 +54,20 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon.ico") ||
-    pathname === "/auth" ||
-    pathname === "/"
+    pathname === "/auth"
   ) {
     return NextResponse.next();
   }
 
   // Route to UI authentication for the admin panel
-  if (pathname.startsWith("/admin")) {
+  if (pathname.startsWith("/admin") || pathname.startsWith("/test")) {
     return handleUiAuth(request);
+  }
+
+  // The root path should not be authenticated as an API endpoint.
+  // It's a public page, so we can just let it pass.
+  if (pathname === "/") {
+    return NextResponse.next();
   }
 
   // Route to API authentication for all other matched routes
@@ -70,16 +75,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  runtime: "nodejs", // Specify Node.js runtime
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - / (the root page)
-     * - /auth (the auth page)
-     * This ensures both /admin and all API routes are covered.
-     */
-    "/((?!_next/static|_next/image|favicon.ico|auth|$).*)",
+    "/",
+    "/admin/:path*",
+    "/test/:path*",
+    "/api/:path*",
+    "/gemini/:path*",
+    "/openai/:path*",
+    "/v1beta/:path*",
+    "/health/:path*",
   ],
 };
