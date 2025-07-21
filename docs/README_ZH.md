@@ -150,6 +150,58 @@ pnpm dev
 
 4.  **(可选) 配置 Cron 作业**: 为了启用失效 API 密钥的自动重新激活，请遵循下面的“外部 Cron 作业健康检查”部分的说明。
 
+## 使用 Cloudflare Pages 部署
+
+本项目可以被部署到 Cloudflare Pages，并使用 Cloudflare D1 作为其数据库。`feat/cloudflare` 分支已包含所有必要的代码修改。
+
+### 1. 推送代码到 GitHub
+
+确保您已经将 `feat/cloudflare` 分支推送到您的 GitHub 远程仓库。
+
+```bash
+git push origin feat/cloudflare
+```
+
+### 2. 在 Cloudflare 中创建 Pages 项目
+
+1.  登录到 Cloudflare 仪表板，导航到 **Workers & Pages**。
+2.  点击 **Create application** > **Pages** > **Connect to Git**。
+3.  选择您的项目仓库 (`gemini-balance-nextjs`) 并点击 **Begin setup**。
+
+### 3. 配置构建与部署
+
+在 **“Set up builds and deployments”** 页面:
+
+- **Production branch**: 选择 `feat/cloudflare` (或者您希望作为生产环境的分支)。
+- **Build command**: `pnpm run build`
+- **Build output directory**: `.next`
+- **Framework preset**: 选择 `Next.js`。
+
+### 4. 创建 D1 数据库
+
+1.  在 Cloudflare 仪表板中，导航到 **Workers & Pages** > **D1**。
+2.  点击 **Create database**，给您的数据库起一个名字 (例如 `gemini-balance-db`)，并选择一个位置。
+
+### 5. 绑定 D1 数据库到 Pages 项目
+
+1.  回到您的 Pages 项目设置页面 (`Settings` > `Functions`)。
+2.  在 **D1 database bindings** 部分，点击 **Add binding**。
+3.  **Variable name**: 输入 `D1_DATABASE` (这必须与代码中的设置匹配)。
+4.  **D1 database**: 选择您在上一步中创建的数据库。
+
+### 6. 配置环境变量
+
+在 Pages 项目的 `Settings` > `Environment variables` 中，为 **Production** 环境添加以下变量：
+
+- `DATABASE_URL`: `prisma://localhost/dev?schema=./prisma/schema.prisma` (此变量仅在构建阶段需要，运行时会被 D1 绑定覆盖)。
+- `CRON_SECRET`: (可选) 如果您需要使用健康检查功能，请设置一个安全的 Cron Secret。
+
+### 7. 部署和首次设置
+
+1.  点击 **Save and Deploy**。Cloudflare 将开始构建和部署您的应用。
+2.  部署完成后，访问您的应用 URL (`YOUR_APP.pages.dev`)。
+3.  遵循与本地开发指南中相同的“首次通过 Web UI 设置”步骤来初始化您的应用，包括设置管理员密码和添加 API 密钥。
+
 ## 外部 Cron 作业健康检查
 
 本应用依赖一个外部的 cron 作业来定期检查非活动 API 密钥的健康状况并重新激活它们。应用为此提供了一个安全的端点。
