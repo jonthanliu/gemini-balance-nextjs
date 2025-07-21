@@ -193,7 +193,8 @@ git push origin feat/cloudflare
 
 在 Pages 项目的 `Settings` > `Environment variables` 中，为 **Production** 环境添加以下变量：
 
-- `DATABASE_URL`: `prisma://localhost/dev?schema=./prisma/schema.prisma` (此变量仅在构建阶段需要，运行时会被 D1 绑定覆盖)。
+- `DATABASE_URL`: `prisma://localhost/dev?schema=./prisma/schema.prisma`
+  - **重要提示**: 此变量**仅在构建阶段需要**。Next.js 在构建时会尝试连接数据库，但此时 Cloudflare 的 D1 绑定尚不可用。提供一个虚拟的 `DATABASE_URL` 可以让 Prisma 在构建时成功初始化，避免构建失败。在应用运行时，代码会优先使用您在上一节中绑定的 D1 数据库，此变量会被忽略。
 - `CRON_SECRET`: (可选) 如果您需要使用健康检查功能，请设置一个安全的 Cron Secret。
 
 ### 7. 部署和首次设置
