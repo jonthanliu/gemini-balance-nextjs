@@ -13,6 +13,7 @@ import { AddKeyDialog } from "./AddKeyDialog";
 import { DashboardStats } from "./DashboardStats";
 import { KeyList } from "./KeyList";
 
+export const runtime = "edge";
 export const revalidate = 0; // Disable caching
 
 export default async function AdminPage({

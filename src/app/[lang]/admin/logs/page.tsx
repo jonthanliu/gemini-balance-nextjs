@@ -10,6 +10,7 @@ import { getDictionary } from "@/lib/get-dictionary";
 import { getLogs } from "../actions";
 import { LogViewer } from "../LogViewer";
 
+export const runtime = "edge";
 export const revalidate = 0; // Disable caching
 
 interface LogsPageProps {

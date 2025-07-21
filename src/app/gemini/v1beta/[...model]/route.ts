@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { isAuthenticated } from "@/lib/auth";
 import { proxyRequest } from "@/lib/gemini-proxy";
 import { NextRequest } from "next/server";

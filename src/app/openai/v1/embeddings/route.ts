@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { isAuthenticated } from "@/lib/auth";
 import {
   createReadableStream,

@@ -10,6 +10,7 @@ import { getDictionary } from "@/lib/get-dictionary";
 import { getSettings } from "@/lib/settings";
 import { ConfigForm } from "../ConfigForm";
 
+export const runtime = "edge";
 export const revalidate = 0; // Disable caching
 
 export default async function ConfigPage({

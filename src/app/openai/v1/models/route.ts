@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { proxyRequest } from "@/lib/gemini-proxy";
 import { NextRequest } from "next/server";
 

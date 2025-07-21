@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { isAuthenticated } from "@/lib/auth";
 import { callImagenApi } from "@/lib/imagen-client";
 import { NextRequest, NextResponse } from "next/server";

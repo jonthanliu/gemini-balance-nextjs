@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { callGeminiApi } from "@/lib/gemini-client";
 import {
   OpenAIChatMessage,

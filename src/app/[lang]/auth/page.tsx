@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { Locale } from "@/i18n-config";
 import { getDictionary } from "@/lib/get-dictionary";
 import LoginForm from "./LoginForm";
