@@ -1,6 +1,4 @@
 import { getKeyManager } from "@/lib/key-manager";
-import { Agent } from "http";
-import { HttpsProxyAgent } from "https-proxy-agent";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "./db";
 import {
@@ -8,15 +6,9 @@ import {
   formatGoogleModelsToOpenAI,
 } from "./google-adapter";
 import logger from "./logger";
-import { getSettings } from "./settings";
 
 const GOOGLE_API_HOST =
   process.env.GOOGLE_API_HOST || "https://generativelanguage.googleapis.com";
-
-interface FetchOptions extends RequestInit {
-  agent?: Agent;
-  duplex?: "half";
-}
 
 /**
  * Extracts and prepares headers for forwarding, removing host-specific headers.
@@ -83,20 +75,14 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
 
     const requestBody = await request.json();
     const geminiRequestBody = await buildGeminiRequest(model, requestBody);
-    const settings = await getSettings();
 
-    const fetchOptions: FetchOptions = {
+    const fetchOptions: RequestInit = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(geminiRequestBody),
-      duplex: "half",
     };
-
-    if (settings.PROXY_URL) {
-      fetchOptions.agent = new HttpsProxyAgent(settings.PROXY_URL);
-    }
 
     const geminiResponse = await fetch(geminiUrl, fetchOptions);
 
