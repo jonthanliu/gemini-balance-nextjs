@@ -1,4 +1,6 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import type { D1Database } from "@cloudflare/workers-types";
+import { PrismaD1 } from "@prisma/adapter-d1";
+import { PrismaClient } from "@prisma/client";
 import "server-only";
 
 declare global {
@@ -7,16 +9,14 @@ declare global {
 }
 
 const createPrismaClient = () => {
-  const logLevels: Prisma.LogLevel[] =
-    process.env.NODE_ENV === "production"
-      ? ["warn", "error"]
-      : ["query", "info", "warn", "error"];
+  if (!process.env.D1_DATABASE) {
+    throw new Error("D1_DATABASE environment variable is not set");
+  }
 
-  const client = new PrismaClient({
-    log: logLevels,
-  });
-
-  return client;
+  const adapter = new PrismaD1(
+    process.env.D1_DATABASE as unknown as D1Database
+  );
+  return new PrismaClient({ adapter });
 };
 
 export const prisma = global.prisma || createPrismaClient();
