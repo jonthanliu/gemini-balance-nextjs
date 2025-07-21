@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/get-dictionary";
 import { getLocale } from "@/lib/get-locale";
 import { getKeyManager, resetKeyManager } from "@/lib/key-manager";
 import { ParsedSettings, resetSettings } from "@/lib/settings";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 
 type Stats = {

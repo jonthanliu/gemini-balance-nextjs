@@ -1,7 +1,7 @@
 import { Locale } from "@/i18n-config";
 import { getDictionary } from "@/lib/get-dictionary";
 import { getSettings } from "@/lib/settings";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import AdminClientLayout from "./AdminClientLayout";

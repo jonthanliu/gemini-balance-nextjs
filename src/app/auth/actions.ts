@@ -4,7 +4,7 @@ import { getDictionary } from "@/lib/get-dictionary";
 import { getLocale } from "@/lib/get-locale";
 import logger from "@/lib/logger";
 import { getSettings, updateSetting } from "@/lib/settings";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
