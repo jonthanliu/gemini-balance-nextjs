@@ -77,9 +77,8 @@ export async function proxyRequest(request: NextRequest, pathPrefix: string) {
     const url = new URL(request.url);
     const modelPath = url.pathname.replace(pathPrefix, "");
     model = modelPath.split("/").pop()?.split(":")[0] ?? ""; // Assign to the outer model variable
-    const geminiUrl = `${GOOGLE_API_HOST}${modelPath}${
-      url.search ? url.search + "&" : "?"
-    }key=${apiKey}`;
+    url.searchParams.set("key", apiKey);
+    const geminiUrl = `${GOOGLE_API_HOST}${modelPath}${url.search}`;
 
     const requestBody = await request.json();
     const geminiRequestBody = await buildGeminiRequest(model, requestBody);
